@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="apple-touch-icon" href="logo.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المصحف الإلكتروني - نسخة معدلة</title>
+    <script src="https://unpkg.com/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
+    <style>
+        :root { --bg: #121212; --nav: #1f1f1f; --gold: #c4a484; --paper: #f4ece0; }
+        body { background: var(--bg); margin: 0; display: flex; flex-direction: column; min-height: 100vh; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        .navbar { width: 100%; background: var(--nav); height: 70px; display: flex; justify-content: space-between; align-items: center; padding: 0 15px; box-sizing: border-box; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 1000; }
+        .info-box { display: flex; flex-direction: column; }
+        .surah-label { color: var(--gold); font-size: 18px; font-weight: bold; }
+        .page-label { color: #888; font-size: 13px; }
+        .controls-nav { display: flex; gap: 10px; align-items: center; }
+        .btn-nav { background: #2c2c2c; color: white; border: 1px solid var(--gold); padding: 8px 15px; border-radius: 5px; cursor: pointer; }
+        .btn-nav:hover { background: var(--gold); color: black; }
+        .viewport { flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        #book-container { width: 500px; height: 700px; }
+        .page { width: 500px; height: 700px; background: var(--paper); display: flex; justify-content: center; align-items: center; }
+        .page img { width: 100%; height: 100%; object-fit: contain; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <div class="info-box">
+        <div class="surah-label" id="cur-surah">سورة الفاتحة</div>
+        <div class="page-label">صفحة المصحف: <span id="cur-page">1</span></div>
+    </div>
+    <div class="controls-nav">
+        <button class="btn-nav" onclick="pageFlip.flipNext()">الصفحة التالية ←</button>
+        <button class="btn-nav" onclick="pageFlip.flipPrev()">→ الصفحة السابقة</button>
+    </div>
+    <select id="surah-select" onchange="goToSurah(this.value)" style="background: #2c2c2c; color: white; border: 1px solid var(--gold); padding: 5px; border-radius: 5px;">
+        <option value="">الفهرس..</option>
+    </select>
+</div>
+
+<div class="viewport">
+    <div id="book-container">
+        <div id="quran-book"></div>
+    </div>
+</div>
+
+<script>
+    let pageFlip;
+    const offset = 2; // عدد الصفحات الزائدة قبل سورة الفاتحة
+    const totalImages = 606; // 604 صفحات مصحف + صفحتين مقدمة
+
+    const surahs = [
+        {name:"الفاتحة", p:1}, {name:"البقرة", p:2}, {name:"آل عمران", p:50}, {name:"النساء", p:77}, {name:"المائدة", p:106},
+        {name:"الأنعام", p:128}, {name:"الأعراف", p:151}, {name:"الأنفال", p:177}, {name:"التوبة", p:187}, {name:"يونس", p:208},
+        {name:"هود", p:221}, {name:"يوسف", p:235}, {name:"الرعد", p:249}, {name:"إبراهيم", p:255}, {name:"الحجر", p:262},
+        {name:"النحل", p:267}, {name:"الإسراء", p:282}, {name:"الكهف", p:293}, {name:"مريم", p:305}, {name:"طه", p:312},
+        {name:"الأنبياء", p:322}, {name:"الحج", p:332}, {name:"المؤمنون", p:342}, {name:"النور", p:350}, {name:"الفرقان", p:359},
+        {name:"الشعراء", p:367}, {name:"النمل", p:377}, {name:"القصص", p:385}, {name:"العنكبوت", p:396}, {name:"الروم", p:404},
+        {name:"لقمان", p:411}, {name:"السجدة", p:415}, {name:"الأحزاب", p:418}, {name:"سبأ", p:428}, {name:"فاطر", p:434},
+        {name:"يس", p:440}, {name:"الصافات", p:446}, {name:"ص", p:453}, {name:"الزمر", p:458}, {name:"غافر", p:467},
+        {name:"فصلت", p:477}, {name:"الشورى", p:483}, {name:"الزخرف", p:489}, {name:"الدخان", p:496}, {name:"الجاثية", p:499},
+        {name:"الأحقاف", p:502}, {name:"محمد", p:507}, {name:"الفتح", p:511}, {name:"الحجرات", p:515}, {name:"ق", p:518},
+        {name:"الذاريات", p:521}, {name:"الطور", p:523}, {name:"النجم", p:526}, {name:"القمر", p:528}, {name:"الرحمن", p:531},
+        {name:"الواقعة", p:534}, {name:"الحديد", p:537}, {name:"المجادلة", p:542}, {name:"الحشر", p:545}, {name:"الممتحنة", p:549},
+        {name:"الصف", p:551}, {name:"الجمعة", p:553}, {name:"المنافقون", p:554}, {name:"التغابن", p:556}, {name:"الطلاق", p:558},
+        {name:"التحريم", p:560}, {name:"الملك", p:562}, {name:"القلم", p:564}, {name:"الحاقة", p:566}, {name:"المعارج", p:568},
+        {name:"نوح", p:570}, {name:"الجن", p:572}, {name:"المزمل", p:574}, {name:"المدثر", p:575}, {name:"القيامة", p:577},
+        {name:"الإنسان", p:578}, {name:"المرسلات", p:580}, {name:"النبأ", p:582}, {name:"النازعات", p:583}, {name:"عبس", p:585},
+        {name:"التكوير", p:586}, {name:"الانفطار", p:587}, {name:"المطففين", p:588}, {name:"الانشقاق", p:589}, {name:"البروج", p:590},
+        {name:"الطارق", p:591}, {name:"الأعلى", p:591}, {name:"الغاشية", p:592}, {name:"الفجر", p:593}, {name:"البلد", p:594},
+        {name:"الشمس", p:595}, {name:"الليل", p:595}, {name:"الضحى", p:596}, {name:"الشرح", p:596}, {name:"التين", p:597},
+        {name:"العلق", p:597}, {name:"القدر", p:598}, {name:"البينة", p:598}, {name:"الزلزلة", p:599}, {name:"العاديات", p:599},
+        {name:"القارعة", p:600}, {name:"التكاثر", p:600}, {name:"العصر", p:601}, {name:"الهمزة", p:601}, {name:"الفيل", p:601},
+        {name:"قريش", p:602}, {name:"الماعون", p:602}, {name:"الكوثر", p:602}, {name:"الكافرون", p:603}, {name:"النصر", p:603},
+        {name:"المسد", p:603}, {name:"الإخلاص", p:604}, {name:"الفلق", p:604}, {name:"الناس", p:604}
+    ];
+
+    window.onload = function() {
+        const book = document.getElementById('quran-book');
+        const select = document.getElementById('surah-select');
+        surahs.forEach(s => { select.add(new Option(s.name, s.p)); });
+
+        for (let i = 1; i <= totalImages; i++) {
+            const page = document.createElement('div');
+            page.className = 'page';
+            const img = document.createElement('img');
+            img.src = i + ".jpg"; 
+            page.appendChild(img);
+            book.appendChild(page);
+        }
+
+        pageFlip = new St.PageFlip(book, {
+            width: 500, height: 700, size: "stretch",
+            showCover: false, usePortrait: true, drawShadow: true
+        });
+
+        pageFlip.loadFromHTML(document.querySelectorAll('.page'));
+
+        pageFlip.on('flip', (e) => {
+            const currentImgNum = e.data + 1;
+            const quranPage = currentImgNum - offset; // تحويل رقم الصورة لرقم صفحة المصحف
+            
+            if (quranPage >= 1) {
+                document.getElementById('cur-page').innerText = quranPage;
+                let sName = surahs.filter(s => s.p <= quranPage).slice(-1)[0];
+                if(sName) document.getElementById('cur-surah').innerText = "سورة " + sName.name;
+            } else {
+                document.getElementById('cur-page').innerText = "مقدمة";
+                document.getElementById('cur-surah').innerText = "صفحات تمهيدية";
+            }
+        });
+        
+        // الانتقال لصفحة الفاتحة مباشرة عند التشغيل
+        setTimeout(() => { pageFlip.turnToPage(offset); }, 500);
+    };
+
+    function goToSurah(p) {
+        if(p) {
+            const targetPage = parseInt(p) + offset - 1;
+            pageFlip.turnToPage(targetPage);
+        }
+    }
+</script>
+</body>
+</html>
